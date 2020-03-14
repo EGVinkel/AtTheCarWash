@@ -17,6 +17,8 @@ public class WashSystem {
     private BufferedReader reader;
     private FileWriter userWriter;
     private FileReader userReader;
+    private FileReader totalWashStatsReader;
+    private FileWriter totalWashStatsWriter;
 
     public WashSystem() throws IOException {
 
@@ -24,6 +26,8 @@ public class WashSystem {
         initializeReaders();
         userWriter= new FileWriter("users.json");
         userReader= new FileReader("users.json");
+        totalWashStatsWriter = new FileWriter("wash.json");
+        totalWashStatsReader = new FileReader("wash.json");
 
     }
 
