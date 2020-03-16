@@ -1,27 +1,24 @@
 package carwash.baselogic;
 
 import carwash.baselogic.models.Wash;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
 class AdminMode {
     private boolean adminModeRunning;
     private ArrayList<Wash> currentWashSelections;
+    private ArrayList<Wash> totalWashes;
+    private HashMap<String, Wash> washCounter;
     private BufferedReader reader;
-    private HashMap<String, Integer> totalStats = new HashMap<>();
 
-    AdminMode(BufferedReader reader) {
-        initializeWasSelection();
-            this.reader = reader;
+    AdminMode(BufferedReader reader, ArrayList<Wash> totalWashes) {
+        initializeWashSelection();
+        washCounter = new HashMap<>();
+        this.totalWashes = totalWashes;
+        this.reader = reader;
     }
 
     public ArrayList<Wash> getCurrentWashSelections() {
@@ -38,8 +35,9 @@ class AdminMode {
                 String input = reader.readLine();
                 switch (input) {
                     case "1":
-                        readTotal();
+                        getCount();
                         getStats();
+                        decrementCount();
                         break;
                     case "2":
                         washAdminstration();
@@ -64,13 +62,14 @@ class AdminMode {
     private void removeWash(String type) {
         currentWashSelections.removeIf(wash -> wash.getType().equalsIgnoreCase(type));
     }
-    private void getStats(){
+
+    private void getStats() {
         final int[] totalEarnings = {0};
-      totalStats.forEach((wash,count) -> currentWashSelections.forEach(activeWash->{
-          System.out.println(wash + " Amount " + count +
-                  " Earnings for this wash type " + count*activeWash.getPrice());
-          totalEarnings[0] = totalEarnings[0] + count*activeWash.getPrice();
-      }));
+        washCounter.forEach((name, wash) -> {
+            System.out.println(name + " Amount " + wash.getCount() +
+                    " Earnings for this wash type " + wash.getCount() * wash.getPrice());
+            totalEarnings[0] = totalEarnings[0] + wash.getCount() * wash.getPrice();
+        });
         System.out.println(totalEarnings[0]);
     }
 
@@ -97,8 +96,7 @@ class AdminMode {
                         removeWash(input);
                         System.out.println("Wash removed");
                         return;
-                    }
-                    else{
+                    } else {
                         System.out.println("No wash by that name found");
                         return;
                     }
@@ -112,7 +110,7 @@ class AdminMode {
 
     }
 
-    private void initializeWasSelection() {
+    private void initializeWashSelection() {
         currentWashSelections = new ArrayList<Wash>() {{
             add(new Wash("Discount Wash", 50));
             add(new Wash("Standard Wash", 80));
@@ -120,31 +118,21 @@ class AdminMode {
         }};
     }
 
-    private void readTotal() {
-        try {
-            JSONParser jsonParser = new JSONParser();
-            JSONArray washList  = (JSONArray) jsonParser.parse(new FileReader("wash.json"));
-            washList.forEach(wash -> {
-                Wash w = parseWash((JSONObject) wash);
-                System.out.println(w.getType());
-                if (totalStats.put(w.getType(), 1) != null) {
-                    totalStats.put(w.getType(), totalStats.get(w) + 1);
-                }
-            });
-        } catch (IOException | ParseException e) {
-            System.out.println("File not found" + e.getMessage());
-        }
-
-    }
-
-    private Wash parseWash(JSONObject wash) {
-        String type = (String) wash.get("type");
-        Long price = (Long) wash.get("price");
-        return new Wash(type, price.intValue());
-    }
-
     private void quit() {
         adminModeRunning = false;
+    }
+
+    private void getCount() {
+        totalWashes.forEach(wash -> {
+            Wash prev = washCounter.put(wash.getType(), wash);
+            if (prev != null) {
+                prev.incrementCount();
+                washCounter.put(wash.getType(), prev);
+            }
+        });
+    }
+    private void decrementCount(){
+        washCounter.forEach((name,wash) -> wash.resetCount() );
     }
 
 }

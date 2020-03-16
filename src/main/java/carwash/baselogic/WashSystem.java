@@ -2,12 +2,12 @@ package carwash.baselogic;
 
 import carwash.baselogic.models.Wash;
 import carwash.baselogic.models.WashCard;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,13 +19,14 @@ class WashSystem {
     private WashCard currentWashCard;
     private AdminMode adminMode;
     private BufferedReader reader;
-    private JSONParser jsonParser = new JSONParser();
+    private ArrayList<Wash> totalWashes = new ArrayList<>();
+    private DTO dto;
 
     WashSystem() {
         initializeReaders();
-        this.adminMode = new AdminMode(reader);
-        readCards();
-
+        this.adminMode = new AdminMode(reader,totalWashes);
+        dto = new DTO(totalWashes, activeWashCards);
+        dto.retrieveData();
     }
 
     public void startSystem() {
@@ -113,26 +114,23 @@ class WashSystem {
                         WashCard washCard = new WashCard(newId, name, new ArrayList<>(), 1000);
                         activeWashCards.put(newId, washCard);
                         System.out.println("Hello " + name + " a wash card with id " + newId + " has been created ");
-                        writeCards();
                         beginTransaction(newId);
                     }
                     if (input.equals("n")) {
                         System.out.println("Ok, returning to previous menu");
                         endTransaction();
                     }
-                } catch (IOException | ParseException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
 
         }
-
-
     }
 
     private void makePayment(Wash wash) {
         currentWashCard.withDraw(wash, discountActive());
-        writeWash(wash);
+        totalWashes.add(wash);
     }
 
     private void transactionsOptions(String option) throws IOException {
@@ -153,12 +151,11 @@ class WashSystem {
     private void initializeReaders() {
         InputStreamReader stream = new InputStreamReader(System.in);
         reader = new BufferedReader(stream);
-
     }
 
-    private void quit() throws IOException, ParseException {
+    private void quit() {
         systemRunning = false;
-        writeCards();
+        dto.writeData();
     }
 
     private void endTransaction() {
@@ -168,93 +165,6 @@ class WashSystem {
     private boolean discountActive() {
         LocalDateTime date = LocalDateTime.now();
         return date.getHour() < 14 && date.getDayOfWeek().getValue() < 6;
-    }
-
-    private void readCards() {
-        try {
-            Object cards = jsonParser.parse(new FileReader("cards.json"));
-            JSONArray cardsList = (JSONArray) cards;
-            cardsList.forEach(card -> {
-                parseCard((JSONObject) card);
-            });
-        } catch (IOException | ParseException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    private void parseCard(JSONObject card) {
-        String id = (String) card.get("id");
-        String name = (String) card.get("name");
-        int balance = Integer.parseInt(card.get("balance").toString());
-        JSONArray washList = (JSONArray) card.get("washTransactions");
-        ArrayList<Wash> washTransactions = new ArrayList<>();
-        washList.forEach(wash -> washTransactions.add(parseWash((JSONObject) wash)));
-        WashCard wc = new WashCard(id, name, washTransactions, balance);
-        activeWashCards.put(id, wc);
-    }
-
-    private Wash parseWash(JSONObject wash) {
-        String type = (String) wash.get("type");
-        Long price = (Long) wash.get("price");
-        return new Wash(type, price.intValue());
-    }
-
-    private void writeSingleCard(WashCard washCard, JSONArray jsonArray)  {
-        try{
-
-            JSONObject card = new JSONObject();
-            card.put("id", washCard.getId());
-            card.put("name", washCard.getName());
-            card.put("balance", washCard.getBalance());
-            JSONArray transactions = new JSONArray();
-            washCard.getWashTransactions().forEach(wash ->
-                    {
-                        JSONObject jsonWash = getJsonObject(wash);
-                        transactions.add(jsonWash);
-                    }
-            );
-            card.put("washTransactions", transactions);
-            jsonArray.add(card);
-            FileWriter writer = new FileWriter("cards.json");
-            writer.write(jsonArray.toJSONString());
-            writer.flush();
-        }catch (IOException e){
-            System.err.println(e.getMessage());
-        }
-
-    }
-
-    private JSONObject getJsonObject(Wash wash) {
-        JSONObject jsonWash = new JSONObject();
-        jsonWash.put("type", wash.getType());
-        jsonWash.put("price", wash.getPrice());
-        return jsonWash;
-    }
-
-    private void writeCards() throws IOException, ParseException {
-        JSONArray a = new JSONArray();
-        activeWashCards.forEach((k, v) -> writeSingleCard(v,a));
-
-    }
-
-    private void writeWash(Wash wash) {
-        try {
-            JSONParser jsonParser = new JSONParser();
-            JSONArray totalWashes = (JSONArray) jsonParser.parse(new FileReader("wash.json"));
-            totalWashes.add(getJsonObject(wash));
-            System.out.println(totalWashes.toJSONString());
-            FileWriter writer = new FileWriter("wash.json");
-            writer.write(totalWashes.toJSONString());
-            writer.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-
-
-
     }
 
     private boolean checkValidity(String in) {
