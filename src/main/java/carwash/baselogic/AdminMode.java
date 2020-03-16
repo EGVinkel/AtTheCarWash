@@ -16,20 +16,12 @@ import java.util.Map;
 class AdminMode {
     private boolean adminModeRunning;
     private ArrayList<Wash> currentWashSelections;
-    private FileReader totalWashStatsReader;
     private BufferedReader reader;
-    private HashMap<Wash, Integer> totalStats = new HashMap<>();
-    private JSONParser jsonParser;
+    private HashMap<String, Integer> totalStats = new HashMap<>();
 
     AdminMode(BufferedReader reader) {
-        jsonParser = new JSONParser();
         initializeWasSelection();
-        try {
             this.reader = reader;
-            totalWashStatsReader = new FileReader("wash.json");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public ArrayList<Wash> getCurrentWashSelections() {
@@ -74,11 +66,11 @@ class AdminMode {
     }
     private void getStats(){
         final int[] totalEarnings = {0};
-      totalStats.forEach((wash,count) -> {
-          System.out.println(wash.getType() + " Amount " + count +
-                  " Earnings for this wash type " + count*wash.getPrice());
-          totalEarnings[0] = totalEarnings[0] + count*wash.getPrice();
-      } );
+      totalStats.forEach((wash,count) -> currentWashSelections.forEach(activeWash->{
+          System.out.println(wash + " Amount " + count +
+                  " Earnings for this wash type " + count*activeWash.getPrice());
+          totalEarnings[0] = totalEarnings[0] + count*activeWash.getPrice();
+      }));
         System.out.println(totalEarnings[0]);
     }
 
@@ -130,12 +122,13 @@ class AdminMode {
 
     private void readTotal() {
         try {
-            Object jsonWashFile = jsonParser.parse(totalWashStatsReader);
-            JSONArray washList = (JSONArray) jsonWashFile;
+            JSONParser jsonParser = new JSONParser();
+            JSONArray washList  = (JSONArray) jsonParser.parse(new FileReader("wash.json"));
             washList.forEach(wash -> {
                 Wash w = parseWash((JSONObject) wash);
-                if (totalStats.put(w, 1) != null) {
-                    totalStats.put(w, totalStats.get(w) + 1);
+                System.out.println(w.getType());
+                if (totalStats.put(w.getType(), 1) != null) {
+                    totalStats.put(w.getType(), totalStats.get(w) + 1);
                 }
             });
         } catch (IOException | ParseException e) {
@@ -145,9 +138,9 @@ class AdminMode {
     }
 
     private Wash parseWash(JSONObject wash) {
-        JSONObject type = (JSONObject) wash.get("type");
-        JSONObject price = (JSONObject) wash.get("price");
-        return new Wash(type.toString(), Integer.parseInt(price.toString()));
+        String type = (String) wash.get("type");
+        Long price = (Long) wash.get("price");
+        return new Wash(type, price.intValue());
     }
 
     private void quit() {

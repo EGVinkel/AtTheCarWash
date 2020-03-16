@@ -17,19 +17,13 @@ class WashSystem {
     private boolean systemRunning = true;
     private HashMap<String, WashCard> activeWashCards = new HashMap();
     private WashCard currentWashCard;
-    private FileWriter totalWashStatsWriter;
     private AdminMode adminMode;
     private BufferedReader reader;
-    private FileWriter cardWriter;
-    private FileReader cardReader;
     private JSONParser jsonParser = new JSONParser();
 
-    WashSystem() throws IOException {
+    WashSystem() {
         initializeReaders();
         this.adminMode = new AdminMode(reader);
-        totalWashStatsWriter = new FileWriter("wash.json");
-        cardWriter = new FileWriter("cards.json");
-        cardReader = new FileReader("cards.json");
         readCards();
 
     }
@@ -69,7 +63,7 @@ class WashSystem {
                 if (currentWashCard.getWashTransactions().size() > 0) {
                     messsage = "Welcome back " + currentWashCard.getName();
                 }
-                System.out.println(messsage + " Current balance is " +currentWashCard.getBalance());
+                System.out.println(messsage + " Current balance is " + currentWashCard.getBalance());
                 System.out.println("Current selection of washes: ");
                 int counter = 1;
                 for (Wash w : adminMode.getCurrentWashSelections()) {
@@ -86,7 +80,10 @@ class WashSystem {
                 try {
                     String input = reader.readLine();
                     if (checkValidity(input)) {
-                        if(input.equals("r")) endTransaction();
+                        if (input.equals("r")) {
+                            endTransaction();
+                            return;
+                        }
                         transactionsOptions(input);
                         beginTransaction(id);
                     } else {
@@ -116,7 +113,7 @@ class WashSystem {
                         WashCard washCard = new WashCard(newId, name, new ArrayList<>(), 1000);
                         activeWashCards.put(newId, washCard);
                         System.out.println("Hello " + name + " a wash card with id " + newId + " has been created ");
-                        writeSingleCard(washCard);
+                        writeCards();
                         beginTransaction(newId);
                     }
                     if (input.equals("n")) {
@@ -135,6 +132,7 @@ class WashSystem {
 
     private void makePayment(Wash wash) {
         currentWashCard.withDraw(wash, discountActive());
+        writeWash(wash);
     }
 
     private void transactionsOptions(String option) throws IOException {
@@ -174,7 +172,7 @@ class WashSystem {
 
     private void readCards() {
         try {
-            Object cards = jsonParser.parse(cardReader);
+            Object cards = jsonParser.parse(new FileReader("cards.json"));
             JSONArray cardsList = (JSONArray) cards;
             cardsList.forEach(card -> {
                 parseCard((JSONObject) card);
@@ -197,30 +195,65 @@ class WashSystem {
     }
 
     private Wash parseWash(JSONObject wash) {
-        JSONObject type = (JSONObject) wash.get("type");
-        JSONObject price = (JSONObject) wash.get("price");
-        return new Wash(type.toString(), Integer.parseInt(price.toString()));
+        String type = (String) wash.get("type");
+        Long price = (Long) wash.get("price");
+        return new Wash(type, price.intValue());
     }
 
-    private void writeSingleCard(WashCard washCard) throws IOException, ParseException {
-        JSONArray a = (JSONArray) jsonParser.parse(cardReader);
-        JSONObject card = new JSONObject();
-        card.put("id", washCard.getId());
-        card.put("name", washCard.getName());
-        card.put("balance", washCard.getBalance());
-        card.put("washTransactions", washCard.getWashTransactions());
-        a.add(card);
-        cardWriter.write(a.toJSONString());
-        cardWriter.flush();
+    private void writeSingleCard(WashCard washCard, JSONArray jsonArray)  {
+        try{
+
+            JSONObject card = new JSONObject();
+            card.put("id", washCard.getId());
+            card.put("name", washCard.getName());
+            card.put("balance", washCard.getBalance());
+            JSONArray transactions = new JSONArray();
+            washCard.getWashTransactions().forEach(wash ->
+                    {
+                        JSONObject jsonWash = getJsonObject(wash);
+                        transactions.add(jsonWash);
+                    }
+            );
+            card.put("washTransactions", transactions);
+            jsonArray.add(card);
+            FileWriter writer = new FileWriter("cards.json");
+            writer.write(jsonArray.toJSONString());
+            writer.flush();
+        }catch (IOException e){
+            System.err.println(e.getMessage());
+        }
+
+    }
+
+    private JSONObject getJsonObject(Wash wash) {
+        JSONObject jsonWash = new JSONObject();
+        jsonWash.put("type", wash.getType());
+        jsonWash.put("price", wash.getPrice());
+        return jsonWash;
     }
 
     private void writeCards() throws IOException, ParseException {
-        JSONArray array = new JSONArray();
-        activeWashCards.forEach((k, v) -> array.add(v));
-        cardWriter.write(array.toJSONString());
+        JSONArray a = new JSONArray();
+        activeWashCards.forEach((k, v) -> writeSingleCard(v,a));
+
     }
 
-    private void writeWash() {
+    private void writeWash(Wash wash) {
+        try {
+            JSONParser jsonParser = new JSONParser();
+            JSONArray totalWashes = (JSONArray) jsonParser.parse(new FileReader("wash.json"));
+            totalWashes.add(getJsonObject(wash));
+            System.out.println(totalWashes.toJSONString());
+            FileWriter writer = new FileWriter("wash.json");
+            writer.write(totalWashes.toJSONString());
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+
 
     }
 

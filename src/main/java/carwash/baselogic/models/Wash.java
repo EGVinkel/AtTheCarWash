@@ -4,6 +4,16 @@ public class Wash {
     private String type;
     private int price;
 
+    public int getCount() {
+        return count;
+    }
+
+    public void incrementCount() {
+        this.count++;
+    }
+
+    private int count;
+
     public int getPrice() {
         return price;
     }
@@ -22,6 +32,8 @@ public class Wash {
     public String getType() {
         return type;
     }
+
+
 
     @Override
     public String toString() {

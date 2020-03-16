@@ -33,7 +33,7 @@ public class WashCard {
 
     public void withDraw(Wash wash, boolean discount) {
         int currentPrice = wash.getPrice();
-        if(discount){
+        if(discount&&!wash.getType().equalsIgnoreCase("Deluxe Wash")){
             currentPrice = (int) (currentPrice*0.8);
         }
         System.out.println("balance " + this.balance + " price " + currentPrice);
