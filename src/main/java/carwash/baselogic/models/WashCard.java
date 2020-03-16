@@ -8,10 +8,11 @@ public class WashCard {
     private int balance = 1000;
     private ArrayList<Wash> washTransactions;
 
-    public WashCard(String id, String name) {
+    public WashCard(String id, String name, ArrayList<Wash> washTransactions, int balance) {
         this.id = id;
         this.name = name;
-        washTransactions = new ArrayList<>();
+        this.washTransactions = washTransactions;
+        this.balance = balance;
     }
 
     public ArrayList<Wash> getWashTransactions() {
@@ -30,23 +31,31 @@ public class WashCard {
         return balance;
     }
 
-    public void withDraw(Wash wash) {
-        int newBalance = this.balance - wash.getPrice();
+    public void withDraw(Wash wash, boolean discount) {
+        int currentPrice = wash.getPrice();
+        if(discount){
+            currentPrice = (int) (currentPrice*0.8);
+        }
+        System.out.println("balance " + this.balance + " price " + currentPrice);
+        int newBalance = this.balance - currentPrice;
 
         if (newBalance < 0) {
             System.out.println("Insufficient funds, please recharge card");
             return;
         }
         this.balance = newBalance;
+        System.out.println(this.balance);
         washTransactions.add(wash);
     }
 
-    public void recharge(int amount) {
+    public boolean recharge(int amount) {
+        amount = Math.abs(amount);
         int newBalance = this.balance + amount;
         if (newBalance > 1000) {
-            System.out.println("Exceeding maximum amount of 1000 please select " + (newBalance - 1000) + " or less");
-            return;
+            System.out.println("Exceeding maximum amount of 1000 please select " + (1000-this.balance) + " or less");
+            return false;
         }
         this.balance = newBalance;
+        return true;
     }
 }
